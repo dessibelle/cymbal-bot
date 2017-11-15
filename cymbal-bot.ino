@@ -27,8 +27,8 @@
   #define LOOP_DELAY 200
 
   #define ONE_DAY 86400L          // Length of day in seconds (i.e. time between reset of periods)
-  #define NUM_PERIODS 5           // Number of periods to announce
-  #define PERIOD_LENGTH (60 * 5)    // Length of period in seconds
+  #define NUM_PERIODS 2           // Number of periods to announce
+  #define PERIOD_LENGTH (60 * 15)    // Length of period in seconds
 #endif
 
 
@@ -93,6 +93,6 @@ void evaluateTimestamp(unsigned long now, unsigned long start) {
     previousPeriod = currentPeriod;
 
     moveServoAndWait(0);
-    moveServoAndWait(150);
+    moveServoAndWait(180);
   }
 }
