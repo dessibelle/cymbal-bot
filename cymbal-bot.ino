@@ -28,7 +28,7 @@
 
   #define ONE_DAY 86400L          // Length of day in seconds (i.e. time between reset of periods)
   #define NUM_PERIODS 2           // Number of periods to announce
-  #define PERIOD_LENGTH (60 * 15)    // Length of period in seconds
+  #define PERIOD_LENGTH (60 * 10)    // Length of period in seconds
 #endif
 
 
