@@ -4,8 +4,10 @@
 
 // #define DEBUG // This enables debug logging, uncomment to enable debug loggin
 
+#define BUTTON_PIN 2
 #define SERVO_PIN 9       // PIN used for servo
 #define SERVO_DELAY 500   // Delay used for waiting for servo
+#define MANUAL_RING_CYCLES_TARGET 1
 
 #ifdef DEBUG
   #define DEBUG_PRINT(x)       Serial.print (x)
@@ -16,7 +18,7 @@
   #define LOOP_DELAY 200
 
   #define ONE_DAY 86400L          // Length of day in seconds (i.e. time between reset of periods)
-  #define NUM_PERIODS 5           // Number of periods to announce
+  #define NUM_PERIODS 1           // Number of periods to announce
   #define PERIOD_LENGTH (2 * 5)        // Length of period in seconds
 #else
   #define DEBUG_PRINT(x)
@@ -38,12 +40,14 @@ RTClib RTC;
 
 unsigned long bootTimestamp = 0;
 int previousPeriod = -1;
+unsigned short numCyclesPressed = 0;
 
 void setup() {
  #ifdef DEBUG
   Serial.begin(9600);
  #endif
 
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
   sg90.attach(SERVO_PIN);
   moveServoAndWait(0);
 
@@ -57,7 +61,23 @@ void loop() {
     bootTimestamp = timestamp;
   }
 
-  evaluateTimestamp(timestamp, bootTimestamp);
+  int buttonState = digitalRead(BUTTON_PIN);
+  bool manualOverride = false;
+
+  DEBUG_PRINT("BUTTON STATE (DIGITAL): ");
+  DEBUG_PRINT_LN(buttonState);
+
+  if (buttonState == LOW) {
+    DEBUG_PRINT_LN("BUTTON IS PRESSED");
+    numCyclesPressed += 1;
+  }
+
+  if (numCyclesPressed >= MANUAL_RING_CYCLES_TARGET) {
+    manualOverride = true;
+    numCyclesPressed = 0;
+  }
+
+  evaluateTimestamp(timestamp, bootTimestamp, manualOverride);
   delay(LOOP_DELAY);
 }
 
@@ -71,7 +91,7 @@ short moveServo(byte pos) {
   return SERVO_DELAY;
 }
 
-void evaluateTimestamp(unsigned long now, unsigned long start) {
+void evaluateTimestamp(unsigned long now, unsigned long start, bool manualOverride) {
   // DEBUG_PRINT("evaluateTimestamp:");
   // DEBUG_PRINT(now);
   // DEBUG_PRINT(" - ");
@@ -82,14 +102,16 @@ void evaluateTimestamp(unsigned long now, unsigned long start) {
 
   int currentPeriod = sinceStartOfDay / PERIOD_LENGTH;
 
+  /*
   DEBUG_PRINT("sinceStart:");
   DEBUG_PRINT_LN(sinceStart);
   // DEBUG_PRINT("sinceStartOfDay:");
   // DEBUG_PRINT_LN(sinceStartOfDay);
   DEBUG_PRINT("currentPeriod:");
   DEBUG_PRINT_LN(currentPeriod);
+  */
 
-  if (currentPeriod != previousPeriod && currentPeriod < NUM_PERIODS) {
+  if (manualOverride || (currentPeriod != previousPeriod && currentPeriod < NUM_PERIODS)) {
     previousPeriod = currentPeriod;
 
     moveServoAndWait(0);
