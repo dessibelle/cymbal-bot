@@ -2,7 +2,7 @@
 #include <DS3231.h>
 #include <Wire.h>
 
-// #define DEBUG // This enables debug logging, uncomment to enable debug loggin
+// #define DEBUG // This enables debug logging, uncomment to enable debug logging
 
 #define BUTTON_PIN 2
 #define SERVO_PIN 9       // PIN used for servo
@@ -18,7 +18,7 @@
   #define LOOP_DELAY 200
 
   #define ONE_DAY 86400L          // Length of day in seconds (i.e. time between reset of periods)
-  #define NUM_PERIODS 1           // Number of periods to announce
+  #define NUM_PERIODS 5           // Number of periods to announce
   #define PERIOD_LENGTH (2 * 5)        // Length of period in seconds
 #else
   #define DEBUG_PRINT(x)
@@ -36,7 +36,9 @@
 
 Servo sg90;
 RTClib RTC;
-// DS3231 Clock; // High level Clock functions
+DS3231 Clock; // High level Clock functions
+
+// const int ClockPowerPin = 6; // Activates voltage regulator to power the RTC (otherwise is on backup power from VCC or batt)
 
 unsigned long bootTimestamp = 0;
 int previousPeriod = -1;
@@ -52,6 +54,22 @@ void setup() {
   moveServoAndWait(0);
 
   Wire.begin();
+
+  // pinMode(ClockPowerPin, OUTPUT);
+  // digitalWrite(ClockPowerPin, HIGH);
+
+  Clock.setClockMode(false);  // set to 24h
+  //setClockMode(true); // set to 12h
+
+  /*
+  Clock.setYear(19);
+  Clock.setMonth(10);
+  Clock.setDate(21);
+  Clock.setHour(20);
+  Clock.setMinute(27);
+  Clock.setSecond(0);
+  Clock.setDoW(2);
+  */
 }
 
 void loop() {
@@ -64,8 +82,8 @@ void loop() {
   int buttonState = digitalRead(BUTTON_PIN);
   bool manualOverride = false;
 
-  DEBUG_PRINT("BUTTON STATE (DIGITAL): ");
-  DEBUG_PRINT_LN(buttonState);
+  // DEBUG_PRINT("BUTTON STATE (DIGITAL): ");
+  // DEBUG_PRINT_LN(buttonState);
 
   if (buttonState == LOW) {
     DEBUG_PRINT_LN("BUTTON IS PRESSED");
@@ -92,10 +110,10 @@ short moveServo(byte pos) {
 }
 
 void evaluateTimestamp(unsigned long now, unsigned long start, bool manualOverride) {
-  // DEBUG_PRINT("evaluateTimestamp:");
-  // DEBUG_PRINT(now);
-  // DEBUG_PRINT(" - ");
-  // DEBUG_PRINT_LN(start);
+  DEBUG_PRINT("evaluateTimestamp:");
+  DEBUG_PRINT(now);
+  DEBUG_PRINT(" - ");
+  DEBUG_PRINT_LN(start);
 
   unsigned long sinceStart = now - start;
   unsigned long sinceStartOfDay = sinceStart % ONE_DAY;
