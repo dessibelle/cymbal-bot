@@ -16,10 +16,6 @@
 
   // Settings
   #define LOOP_DELAY 200
-
-  #define ONE_DAY 86400L          // Length of day in seconds (i.e. time between reset of periods)
-  #define NUM_PERIODS 5           // Number of periods to announce
-  #define PERIOD_LENGTH (2 * 5)        // Length of period in seconds
 #else
   #define DEBUG_PRINT(x)
   #define DEBUG_PRINT_DEC(x)
@@ -27,10 +23,6 @@
 
   // Settings
   #define LOOP_DELAY 200
-
-  #define ONE_DAY 86400L          // Length of day in seconds (i.e. time between reset of periods)
-  #define NUM_PERIODS 2           // Number of periods to announce
-  #define PERIOD_LENGTH (60 * 10)    // Length of period in seconds
 #endif
 
 
@@ -38,10 +30,25 @@ Servo sg90;
 RTClib RTC;
 DS3231 Clock; // High level Clock functions
 
-// const int ClockPowerPin = 6; // Activates voltage regulator to power the RTC (otherwise is on backup power from VCC or batt)
+struct belltime {
+  byte hour;
+  byte minute;
+  byte second;
+};
 
-unsigned long bootTimestamp = 0;
-int previousPeriod = -1;
+
+bool is_equal_belltime(struct belltime t1, struct belltime t2) {
+  return t1.hour == t2.hour && t1.minute == t2.minute && t1.second == t2.second;
+}
+
+struct belltime bell_schedule[] = {
+  {9, 45, 0},
+  {10, 0, 0}
+ };
+
+struct belltime lastTrigger;
+
+// const int ClockPowerPin = 6; // Activates voltage regulator to power the RTC (otherwise is on backup power from VCC or batt)
 unsigned short numCyclesPressed = 0;
 
 void setup() {
@@ -51,9 +58,10 @@ void setup() {
 
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   sg90.attach(SERVO_PIN);
-  moveServoAndWait(0);
 
   Wire.begin();
+
+  moveServoAndWait(180);
 
   // pinMode(ClockPowerPin, OUTPUT);
   // digitalWrite(ClockPowerPin, HIGH);
@@ -75,9 +83,6 @@ void setup() {
 void loop() {
   DateTime now = RTC.now();
   unsigned long timestamp = now.unixtime();
-  if (!bootTimestamp) {
-    bootTimestamp = timestamp;
-  }
 
   int buttonState = digitalRead(BUTTON_PIN);
   bool manualOverride = false;
@@ -95,7 +100,7 @@ void loop() {
     numCyclesPressed = 0;
   }
 
-  evaluateTimestamp(timestamp, bootTimestamp, manualOverride);
+  evaluateBell(manualOverride);
   delay(LOOP_DELAY);
 }
 
@@ -109,29 +114,33 @@ short moveServo(byte pos) {
   return SERVO_DELAY;
 }
 
-void evaluateTimestamp(unsigned long now, unsigned long start, bool manualOverride) {
-  DEBUG_PRINT("evaluateTimestamp:");
-  DEBUG_PRINT(now);
-  DEBUG_PRINT(" - ");
-  DEBUG_PRINT_LN(start);
+void evaluateBell(bool manualOverride) {
+  bool h12, pm;
+  byte h = Clock.getHour(h12, pm);
+  byte m = Clock.getMinute();
+  byte s = Clock.getSecond();
+  struct belltime now = {h, m, s};
 
-  unsigned long sinceStart = now - start;
-  unsigned long sinceStartOfDay = sinceStart % ONE_DAY;
+  bool triggerBell = false;
 
-  int currentPeriod = sinceStartOfDay / PERIOD_LENGTH;
+  DEBUG_PRINT("evaluateBell:");
+  DEBUG_PRINT(h);
+  DEBUG_PRINT(":");
+  DEBUG_PRINT(m);
+  DEBUG_PRINT(":");
+  DEBUG_PRINT_LN(s);
 
-  /*
-  DEBUG_PRINT("sinceStart:");
-  DEBUG_PRINT_LN(sinceStart);
-  // DEBUG_PRINT("sinceStartOfDay:");
-  // DEBUG_PRINT_LN(sinceStartOfDay);
-  DEBUG_PRINT("currentPeriod:");
-  DEBUG_PRINT_LN(currentPeriod);
-  */
+  size_t schedule_size = sizeof(bell_schedule) / sizeof(bell_schedule[0]);
+  for (int i = 0; i < schedule_size; i++) {
+    struct belltime t = bell_schedule[i];
+    triggerBell |= is_equal_belltime(now, t);
+  }
 
-  if (manualOverride || (currentPeriod != previousPeriod && currentPeriod < NUM_PERIODS)) {
-    previousPeriod = currentPeriod;
+  // triggerBell = s % 10 == 0;
+  bool alreadyTriggered = is_equal_belltime(now, lastTrigger);
 
+  if ((!alreadyTriggered && triggerBell) || manualOverride) {
+    lastTrigger = {h, m, s};
     moveServoAndWait(0);
     moveServoAndWait(180);
   }
